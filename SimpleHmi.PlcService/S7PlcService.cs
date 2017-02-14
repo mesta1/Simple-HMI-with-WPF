@@ -79,32 +79,38 @@ namespace SimpleHmi.PlcService
 
         public async Task WriteStart()
         {
-            int writeResult = await WriteBit("DB1.DBX0.0", true);
-            if (writeResult != 0)
+            await Task.Run(() =>
             {
-                Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
-            }
-            Thread.Sleep(30);
-            writeResult = await WriteBit("DB1.DBX0.0", false);
-            if (writeResult != 0)
-            {
-                Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
-            }
+                int writeResult = WriteBit("DB1.DBX0.0", true);
+                if (writeResult != 0)
+                {
+                    Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
+                }
+                Thread.Sleep(30);
+                writeResult = WriteBit("DB1.DBX0.0", false);
+                if (writeResult != 0)
+                {
+                    Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
+                }
+            });
         }
 
         public async Task WriteStop()
         {
-            int writeResult = await WriteBit("DB1.DBX0.1", true);
-            if (writeResult != 0)
+            await Task.Run(() =>
             {
-                Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
-            }
-            Thread.Sleep(30);
-            writeResult = await WriteBit("DB1.DBX0.1", false);
-            if (writeResult != 0)
-            {
-                Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
-            }
+                int writeResult = WriteBit("DB1.DBX0.1", true);
+                if (writeResult != 0)
+                {
+                    Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
+                }
+                Thread.Sleep(30);
+                writeResult = WriteBit("DB1.DBX0.1", false);
+                if (writeResult != 0)
+                {
+                    Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss") + "\t Write error: " + _client.ErrorText(writeResult));
+                }
+            });
         }
 
         private void OnTimerElapsed(object sender, ElapsedEventArgs e)
@@ -149,29 +155,23 @@ namespace SimpleHmi.PlcService
         /// <param name="address">Es.: DB1.DBX10.2 writes the bit in db 1, word 10, 3rd bit</param>
         /// <param name="value">true or false</param>
         /// <returns></returns>
-        private async Task<int> WriteBit(string address, bool value)
+        private int WriteBit(string address, bool value)
         {
             var strings = address.Split('.');
             int db = Convert.ToInt32(strings[0].Replace("DB", ""));
             int pos = Convert.ToInt32(strings[1].Replace("DBX", ""));
             int bit = Convert.ToInt32(strings[2]);
-            return await WriteBit(db, pos, bit, value);
+            return WriteBit(db, pos, bit, value);
         }
 
-        private async Task<int> WriteBit(int db, int pos, int bit, bool value)
+        private int WriteBit(int db, int pos, int bit, bool value)
         {
-            int result = await Task.Run(() =>
+            lock (_locker)
             {
-                lock (_locker)
-                {
-                    var buffer = new byte[1];
-                    S7.SetBitAt(ref buffer, 0, bit, value);
-                    return _client.WriteArea(S7Consts.S7AreaDB, db, pos + bit, buffer.Length, S7Consts.S7WLBit, buffer);
-                }
-
-            });
-            return result;
-
+                var buffer = new byte[1];
+                S7.SetBitAt(ref buffer, 0, bit, value);
+                return _client.WriteArea(S7Consts.S7AreaDB, db, pos + bit, buffer.Length, S7Consts.S7WLBit, buffer);
+            }
         }
 
         private void OnValuesRefreshed()
